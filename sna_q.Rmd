@@ -1,0 +1,581 @@
+---
+title: 'Gov 2018: Social Networks'
+author:
+- 'Your name: '
+date: 'Apr 12, 2022'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(igraph)
+```
+
+There are a ton of R packages available for network analysis, however, here you're going to focus on using the `igraph` package throughout (Gabor & Nepusz 2006, http://igraph.org). It combines ease of use and high-level computation (it is also available for Python and C/C++). This package has proven to be very useful, and it covers a lot of basic network analysis methods as well as plotting capabilities. This exercise uses materials from Dai Shizuka and Pablo Barbera.
+
+To see how to manually make a network and take a look at it before you dive in:
+```{r}
+g=make_graph(~A-B-C-A, D-E-F-D, A-F) 
+plot(g)
+#look at vertices
+V(g)
+#look at edges
+E(g)
+#look at vertex attributes (currently just name)
+V(g)$name
+#Create new vertex attributes -- some can actually be directly interpreted by igraph, such as color
+V(g)$color=c("white", "red", "green", "blue", "orange", "yellow") #a random set of colors 
+plot(g)
+#Add edge attributes
+E(g)$width=1:7
+E(g)$color=rainbow(7) #rainbow() function chooses a specified number of colors 
+plot(g)
+```
+
+## 1 Exploring network data formats
+
+### 1.1 Adjacency matrix, Edge list, Affiliation 
+
+Extract the adjacency matrix of `g` using `as_adjacency_matrix`. Then pull out the edgelist using `as_edgelist`. 
+
+```{r}
+# extract the adjacency matrix
+as_adjacency_matrix(g)
+
+# pull out edge list
+as_edgelist(g)
+
+```
+
+### 1.2 Affiliation matrix
+
+In many cases, we will construct social networks from co-membership in groups. For example, we would draw edges between individuals based on their patterns of co-occurrence in a flock. Similarly, we could construct networks of species co-occurrences in populations, etc.
+
+To do this, we would first need data in a matrix in which rows represent individuals (or species) and columns represent groups (or populations). Note that you could flip the columns and rows–either way is fine. You just need to be aware of how you arranged it.
+
+Below is a toy example in which individuals A through E occur in different combinations in 4 groups.
+
+```{r}
+A=c(1,1,0,0) 
+B=c(1,0,1,0) 
+C=c(1,0,1,0) 
+D=c(0,1,0,1) 
+E=c(0,0,1,1) 
+aff=matrix(c(A,B,C,D,E),nrow=5,byrow=TRUE) 
+dimnames(aff)=list(c("A","B","C","D","E"),c("Group1","Group2","Group3","Group4"))
+aff #The individual-by-group matrix
+```
+
+There are different ways to convert this data into a social network–i.e., a network that describes which individual co-occurs with which individual in groups. One simple way is to do what is called a one-mode projection of this data by multiplying this matrix with the transpose of itself. Do such a projection on `aff` and print it out. Then take the projection and plot the adjacency matrix from it where edges are weighted by the variable `weight`.
+
+```{r}
+# one-mode projection of aff: multiply aff with the transpose of itself
+# print it out
+aff_t <- aff %*% t(aff)
+
+aff_t
+
+# create igraph object using graph_from_adjacency_matrix() with mode = "undirected", weighted = T, diag = F
+# plot the graph using the edge attribute named `weight` as your edge.width
+igraph_obj <- graph_from_adjacency_matrix(aff_t, mode = "undirected", weighted = T, diag = F)
+
+plot(igraph_obj)
+
+```
+
+## 2 Real data 
+
+Here you will be using a small network that indicates interactions in the movie Star Wars Episode IV. Each node is a character and each edge indicates whether they appeared together in a scene of the movie. Edges here are thus undirected and they also have weights attached, since they can appear in multiple scenes together.
+
+The first step is to read the list of edges and nodes in this network:
+```{r}
+edges <- read.csv("star-wars-network-edges.csv")
+head(edges)
+nodes <- read.csv("star-wars-network-nodes.csv")
+head(nodes)
+```
+
+For example, we learn that C-3PO and R2-D2 appeared in 17 scenes together.
+
+How do we convert these two datasets into a network object in R? There are multiple packages to work with networks, but the most popular is `igraph` because it's very flexible and easy to do. Other packages that you may want to explore are `sna` and `networks`.
+
+Now, how do we create the igraph object? We can use the `graph_from_data_frame` function, which takes two arguments: `d`, the data frame with the edge list in the first two columns; and `vertices`, a data frame with node data with the node label in the first column. (Note that igraph calls the nodes `vertices`, but it's exactly the same thing.)
+
+```{r, message=FALSE}
+g <- graph_from_data_frame(d=edges, vertices=nodes, directed=FALSE)
+g
+```
+
+What does it mean?
+- `U` means undirected  
+- `N` means named graph  
+- `W` means weighted graph  
+- `22` is the number of nodes  
+- `60` is the number of edges  
+- `name (v/c)` means _name_ is a node attribute and it's a character  
+- `weight (e/n)` means _weight_ is an edge attribute and it's numeric  
+
+### 2.1 Practice accessing elements of the network
+
+Practice accessing the following elements of the network: nodes, names of the nodes, attributes of the nodes, edges, weights for each edge, all attributes of the edges, the adjacency matrix, and just the first row of the adjacency matrix.
+
+```{r}
+# nodes
+# names of each node
+# all attributes of the nodes
+# edges
+# weights for each edge
+# all attributes of the edges
+# adjacency matrix
+# first row of adjacency matrix
+```
+
+### 2.2 Network visualization
+
+How can we visualize this network? The `plot()` function works out of the box, but the default options are often not ideal:
+
+```{r}
+par(mar=c(0,0,0,0))
+plot(g)
+```
+
+Improve this figure. To see all the available plotting options, you can check `?igraph.plotting`. Set the vertex color, label colors, the size of the labels, curvature to the edge and edge color to ones different from the default settings and in a way that is visually appealing to you.
+
+```{r}
+# change color of nodes
+# change color of labels
+# change size of labels to 75% of original size
+# add a 25% curve to the edges
+# change edge color to grey
+
+plot.igraph(g,
+            vertex.color = "green",
+            vertex.label.color = "black",
+            vertex.label.cex = .75,
+            edge.curved=.25,
+            edge.color = "purple")
+
+```
+
+Now modify some of these plotting attributes so that they are function of network properties. For example, a common adjustment is to change the size of the nodes and node labels so that they match their `importance`. 
+
+Here, `strength` will correspond to the number of scenes they appear in. Let the size of the node be determined by the `strength`, and only show the labels of character that appear in 10 or more scenes. Finally change the colors of the node based on what side they're in (dark side or light side) and add an informative legend.
+
+```{r}
+# let the size of the node be determined by the `strength`:
+# - you may need to take log to improve the visualization
+# - only show the labels of character that appear in 10 or more scenes
+
+# Change the colors of each node based on what side they're in (dark side or light side):
+# - create vectors with characters in each side
+dark_side <- c("DARTH VADER", "MOTTI", "TARKIN")
+light_side <- c("R2-D2", "CHEWBACCA", "C-3PO", "LUKE", "CAMIE", "BIGGS",
+                "LEIA", "BERU", "OWEN", "OBI-WAN", "HAN", "DODONNA",
+                "GOLD LEADER", "WEDGE", "RED LEADER", "RED TEN", "GOLD FIVE")
+other <- c("GREEDO", "JABBA")
+# - create a new color variable as a node property
+V(g)$color <- NA
+V(g)$color[V(g)$name %in% dark_side] <- "red"
+V(g)$color[V(g)$name %in% light_side] <- "gold"
+V(g)$color[V(g)$name %in% other] <- "grey20"
+vertex_attr(g)
+par(mar=c(0,0,0,0)); plot(g)
+
+# - assign the color based on its side
+
+# Plot the result with legend
+par(mar=c(0,0,0,0)); plot(g)
+legend(x=.75, y=.75, legend=c("Dark side", "Light side", "Other"), 
+       pch=21, pt.bg=c("red", "gold", "grey20"), pt.cex=2, bty="n")
+```
+
+
+Edge properties can also be modified. Set the width of each edge as a function of the log number of scenes two characters appear together. Plot it.
+
+```{r}
+# Hint: Use E(g)$width
+E(g)$width <- log(E(g)$weight) + 1
+edge_attr(g)
+par(mar=c(0,0,0,0)); plot(g)
+
+```
+
+
+## Extra: layouts
+
+Up to now, each time we run the `plot` function, the nodes appear to be in a different location. Why? Because it's running a probabilistic function trying to locate them in the optimal way possible.
+
+However, we can also specify the __layout__ for the plot; that is, the (x,y) coordinates where each node will be placed. `igraph` has a few different layouts built-in, that will use different algorithms to find an `optimal` distribution of nodes. The following code illustrates some of these:
+
+```{r, fig.width=12, fig.height=7}
+par(mfrow=c(2, 3), mar=c(0,0,1,0))
+plot(g, layout=layout_randomly, main="Random")
+plot(g, layout=layout_in_circle, main="Circle")
+plot(g, layout=layout_as_star, main="Star")
+plot(g, layout=layout_as_tree, main="Tree")
+plot(g, layout=layout_on_grid, main="Grid")
+plot(g, layout=layout_with_fr, main="Force-directed")
+```
+
+Note that each of these is actually just a matrix of (x,y) locations for each node.
+
+```{r}
+l <- layout_randomly(g)
+str(l)
+```
+
+The most popular layouts are [force-directed ](https://en.wikipedia.org/wiki/Force-directed_graph_drawing). These algorithms, such as Fruchterman-Reingold, try to position the nodes so that the edges have similar length and there are as few crossing edges as possible. The idea is to generate "clean" layouts, where nodes that are closer to each other share more connections in common that those that are located further apart. Note that this is a non-deterministic algorithm: choosing a different seed will generate different layouts.
+
+```{r, fig.width=12, fig.height=7}
+par(mfrow=c(1,2))
+set.seed(777)
+fr <- layout_with_fr(g, niter=1000)
+par(mar=c(0,0,0,0)); plot(g, layout=fr)
+set.seed(666)
+fr <- layout_with_fr(g, niter=1000)
+par(mar=c(0,0,0,0)); plot(g, layout=fr)
+```
+
+
+## 3 Node properties
+
+Let's look at descriptive statistics at the node level. All of these are in some way measures of importance or __centrality__.
+
+The most basic measure is __degree__, the number of adjacent edges to each node. It is often considered a measure of direct influence. In the Star Wars network, it will be the unique number of characters that each character is interacting with. Sort the `degree` of the network and print it out. 
+
+```{r}
+# sort the `degree` of the network and print it out
+
+sort(degree(g))
+```
+
+In directed graphs, there are three types of degree: indegree (incoming edges), outdegree (outgoing edges), and total degree. You can find these using `mode="in"` or `mode="out"` or `mode="total"`. 
+
+__Strength__ is a weighted measure of degree that takes into account the number of edges that go from one node to another. In this network, it will be the total number of interactions of each character with anybody else. Sort the `strength` of the network and print it out.
+
+```{r}
+# sort the `strength` of the network and print it out
+
+sort(strength(g))
+```
+
+__Closeness__ measures how many steps are required to access every other node from a given node. It's a measure of how long information takes to arrive (who hears news first?). Higher values mean less centrality. Sort the `closeness` of the network (normalize it) and print it out.
+
+```{r}
+# sort the `closeness` of the network and print it out
+
+sort(closeness(g, normalized=TRUE))
+```
+
+__Betweenness__ measures brokerage or gatekeeping potential. It is (approximately) the number of shortest paths between nodes that pass through a particular node. Sort the `betweenness` of the network and print it out.
+
+```{r}
+# sort the `betweenness` of the network and print it out
+
+sort(betweenness(g))
+```
+
+Eigenvector centrality is a measure of being well-connected connected to the well-connected. First eigenvector of the graph adjacency matrix. Only works with undirected networks. Sort the returned *vector* from the `eigen_centrality` of the network and print it out.
+
+```{r}
+# sort the `vector` from the `eigen_centrality` of the network and print it out
+
+sort(eigen_centrality(g)$vector)
+```
+
+__Page rank__ approximates probability that any message will arrive to a particular node. This algorithm was developed by Google founders, and originally applied to website links. Sort the returned *vector* from the `page_rank` of the network and print it out.
+
+```{r}
+# sort the `vector` from the `page_rank` of the network and print it out
+
+sort(page_rank(g)$vector)
+```
+
+__Authority score__ is another measure of centrality [initially applied to the Web](https://en.wikipedia.org/wiki/HITS_algorithm). A node has high authority when it is linked by many other nodes that are linking many other nodes. Sort the returned *vector* from the `authority_score` of the network and print it out.
+
+```{r}
+# sort the `vector` from the `authority_score` of the network and print it out
+
+sort(authority_score(g)$vector)
+```
+
+Finally, not exactly a measure of centrality, but we can learn more about who each node is connected to by using the following functions: `neighbors` (for direct neighbors) and `ego` (for neighbors up to `n` neighbors away). Find the neighbors of "DARTH VADER". Find his neighbors up to order 2 away.
+
+```{r}
+# find the neighbors of "DARTH VADER" using `neighbors` (for direct neighbors)
+neighbors(g, v=which(V(g)$name=="DARTH VADER"))
+
+# find his neighbors up to order 2 away using `ego` 
+ego(g, order=2, nodes=which(V(g)$name=="DARTH VADER"))
+
+```
+
+## 4 Network properties
+
+Let's now try to describe what a network looks like as a whole. We can start with measures of the __size__ of a network. `diameter` is the length of the longest path (in number of edges) between two nodes. We can use `get_diameter` to identify this path. `mean_distance` is the average number of edges between any two nodes in the network. We can find each of these paths between pairs of edges with `distances`. Find the diameter and mean distances of the network.
+
+```{r}
+# find the length of the longest path (`diameter`)
+diameter(g, directed=FALSE, weights=NA)
+get_diameter(g, directed=FALSE, weights=NA)
+
+# find the mean distances of the network (`mean_distance`)
+mean_distance(g, directed=FALSE)
+dist <- distances(g, weights=NA)
+dist[1:5, 1:5]
+```
+
+`edge_density` is the proportion of edges in the network over all possible edges that could exist. Find the `edge_density` of the network.
+
+```{r}
+# find the `edge_density`
+edge_density(g)
+
+# (How can we calculate this manually?)
+60/((22*21)/2)
+
+```
+
+`reciprocity` measures the propensity of each edge to be a mutual edge; that is, the probability that if `i` is connected to `j`, `j` is also connected to `i`. Find the reciprocity of the network -- you should find that it is 1. Explain why you think reciprocity=1 in this case.
+
+```{r}
+# find the reciprocity of the network
+reciprocity(g)
+
+# Why is it 1?
+
+# because there is one person at the center of the whole network - it all revolves around Luke.
+```
+
+`transitivity`, also known as clustering coefficient, measures that probability that adjacent nodes of a network are connected. In other words, if `i` is connected to `j`, and `j` is connected to `k`, what is the probability that `i` is also connected to `k`? Find the transitivity of the network.
+
+```{r}
+# find the transitivity of the network
+
+transitivity(g)
+```
+
+## Extra: Network communities
+
+Networks often have different clusters or communities of nodes that are more densely connected to each other than to the rest of the network. Let's cover some of the different existing methods to identify these communities.
+
+The most straightforward way to partition a network is into __connected components__. Each component is a group of nodes that are connected to each other, but _not_ to the rest of the nodes. For example, this network has two components.
+
+```{r}
+components(g)
+par(mar=c(0,0,0,0)); plot(g)
+```
+
+Most networks have a single __giant connected component__ that includes most nodes. Most studies of networks actually focus on the giant component (e.g. the shortest path between nodes in a network with two or more component is Inf!).
+
+```{r}
+giant <- decompose(g)[[1]]
+```
+
+Components can be __weakly connected__ (in undirected networks) or __strongly connected (in directed networks, where there is an edge that ends in every single node of that component).
+
+Even within a giant component, there can be different subsets of the network that are more connected to each other than to the rest of the network. The goal of __community detection algorithms__ is to identify these subsets.
+
+There are a few different algorithms, each following a different logic. 
+
+The __walktrap__ algorithm finds communities through a series of short random walks. The idea is that these random walks tend to stay within the same community. The length of these random walks is 4 edges by default, but you may want to experiment with different values. The goal of this algorithm is to identify the partition that maximizes a modularity score.
+
+```{r}
+cluster_walktrap(giant)
+cluster_walktrap(giant, steps=10)
+```
+
+Other methods are:
+
+- The __fast and greedy__ method tries to directly optimize this modularity score.
+- The __infomap__ method attempts to map the flow of information in a network, and the different clusters in which information may get remain for longer periods. Similar to walktrap, but not necessarily maximizing modularity, but rather the so-called "map equation".
+- The __edge-betweenness__ method iteratively removes edges with high betweenness, with the idea that they are likely to connect different parts of the network. Here betweenness (gatekeeping potential) applies to edges, but the intuition is the same.
+- The __label propagation__ method labels each node with unique labels, and then updates these labels by choosing the label assigned to the majority of their neighbors, and repeat this iteratively until each node has the most common labels among its neighbors.
+
+```{r}
+cluster_fast_greedy(giant)
+cluster_edge_betweenness(giant)
+cluster_infomap(giant)
+cluster_label_prop(giant)
+```
+
+Infomap tends to work better in most social science examples (websites, social media, classrooms, etc), but fastgreedy is faster.
+
+`igraph` also makes it very easy to plot the resulting communities:
+```{r}
+comm <- cluster_infomap(giant)
+modularity(comm) # modularity score
+par(mar=c(0,0,0,0)); plot(comm, giant)
+```
+
+Alternatively, we can also add the membership to different communities as a color parameter in the `igraph` object.
+```{r}
+V(giant)$color <- membership(comm)
+par(mar=c(0,0,0,0)); plot(giant)
+```
+
+The final way in which we can think about network communities is in terms of hierarchy or structure. We'll discuss one of these methods.
+
+__K-core decomposition__ allows us to identify the core and the periphery of the network. A k-core is a maximal subnet of a network such that all nodes have at least degree K.
+
+```{r, fig.height=5, figh.width=6}
+coreness(g)
+which(coreness(g)==6) # what is the core of the network?
+which(coreness(g)==1) # what is the periphery of the network?
+
+# Visualizing network structure
+V(g)$coreness <- coreness(g)
+par(mfrow=c(2, 3), mar=c(0.1,0.1,1,0.1))
+set.seed(777); fr <- layout_with_fr(g)
+for (k in 1:6){
+  V(g)$color <- ifelse(V(g)$coreness>=k, "orange", "grey")
+  plot(g, main=paste0(k, '-core shell'), layout=fr)
+}
+```
+
+## 5 Social network analysis with `vosonSML`
+
+The `vosonSML` R package is a suite of easy to use functions for collecting and generating different types of networks from social media data. The package supports the collection of data from `twitter`, `youtube` and `reddit`, as well as `hyperlinks` from web sites. Networks in the form of node and edge lists can be generated from collected data, supplemented with additional metadata and used to create graphs for Social Network Analysis.
+
+Install and load the latest release of the package:
+```{r}
+
+library(magrittr) # %>%
+library(vosonSML)
+```
+
+The following Reddit example will provide a quick start to using vosonSML functions. Additionally there is an [Introduction to vosonSML](https://vosonlab.github.io/vosonSML/articles/Intro-to-vosonSML.html) vignette that is a practical and explanatory guide to collecting data and creating networks.
+
+### Collecting Data from Reddit
+
+The `vosonSML` does not require `Reddit` API credentials to be provided when collecting the data, unlike `twitter` and `youtube`.
+
+To collect Reddit comment data, first construct a character vector containing the post URL(s). In the example below, a post relating to the politics around the Australian bushfires was used: https://www.reddit.com/r/worldnews/comments/elcb9b/australias_leaders_deny_link_between_climate/. 
+
+```{r}
+myThreadUrls <- c("https://www.reddit.com/r/worldnews/comments/elcb9b/australias_leaders_deny_link_between_climate/")
+```
+
+This post was created on 7th January 2020 and it had attracted over 4000 comments. According to the vignettes of the package, the reddit web endpoint used for collection has maximum limit of 500 comments per thread url, but this limit might have been updated since then.
+
+Collect and explore the data using the codes below.
+
+```{r}
+redditData <- Authenticate("reddit") %>%
+              Collect(threadUrls = myThreadUrls, 
+                      writeToFile = FALSE) # whether to write the returned dataframe to file as an .rds file
+str(redditData)
+```
+
+### Creating Reddit Networks
+
+It is currently possible to create two types of networks using Reddit data: (1) actor network and (2) activity network.
+
+#### Actor Network
+
+In the Reddit actor network, nodes represent users who have posted original posts and comments and the edges are the interactions between users in the comments i.e. where there is an edge from user $i$ to user $j$ if $i$ writes a comment that replies to user $j$’s comment (or the original post).
+
+Create a Reddit actor network with comment text as an edge attribute by the following steps:
+
+- Run `Create(data = redditData,type = "actor")` which returns a named list containing two dataframes named "nodes" and "edges".
+- Pass the list to `AddText()`, which adds the comment text data to the network dataframe, stored as an edge attribute.
+- Pass the list to `Graph()`, which returns an igraph graph object.
+
+```{r}
+
+actorNetwork <- Create(data = redditData,type = "actor") %>% AddText(redditData)
+
+actorGraph <- actorNetwork %>% Graph(writeToFile = F)
+
+actorGraph
+
+
+
+
+```
+
+The Reddit actor network contains a graph attribute `type` (set to "reddit"). 
+
+The node attributes are: 
+- `name` (sequential ID number for actor, generated by `vosonSML`), 
+- `user` (Reddit handle or screen name)) and 
+- `label` (a concatenation of the ID and screen name). 
+
+The edge attributes are: 
+- `subreddit` (the subreddit from which the post is collected), 
+- `thread_id` (the 6 character ID of the thread or post), 
+- `comment_id` (sequential ID number for comment, generated by `vosonSML`).
+- There is also an edge attribute `title`, which is set to `NA` for all comments except the comment representing the original post. Further note that the original post is represented as a self-loop edge from the user who authored the post (and this is how the post text can be accessed, as an edge attribute). 
+- Finally, because we used `AddText()` in the above example, there is also an edge attribute `vosonTxt_comment` which is the text associated with the comment, or original post.
+
+How many nodes and edges are there in the example Reddit actor network?
+
+```{r}
+```
+
+Use the following codes for a visualization of the actor network. Note that the author of the post is indicated by a red node, and blue nodes indicate those people who mentioned "arson" or "starting fires" in at least one of their comments.
+
+```{r}
+# set node color of original post to red based on presence of title edge attribute
+# set other node colors to grey
+V(actorGraph)$color <- "grey"
+V(actorGraph)$color[tail_of(actorGraph, which(!is.na(E(actorGraph)$title)))] <- "red"
+
+# get node indexes for the tails of edges that have comments containing words of interest: e.g., "arson" or "starting fires"
+# set their node colors to blue
+ind <- tail_of(actorGraph, grep("arson|starting fires", tolower(E(actorGraph)$vosonTxt_comment)))
+V(actorGraph)$color[ind] <- "blue"
+
+par(mfrow=c(1,1), mar=c(0,0,0,0))
+plot(actorGraph, vertex.label = "", vertex.size = 4, edge.arrow.size = 0.5)
+```
+
+#### Activity Network
+
+In the Reddit activity network, nodes are either comments and/or initial thread posts and the edges represent replies to the original post, or replies to comments. Create a Reddit activity network as before with `type = "activity"`.
+
+```{r}
+
+activityNetwork <- Create(data = redditData,type = "activity") %>% AddText(redditData)
+
+activityGraph <- activityNetwork %>% Graph(writeToFile = F)
+
+activityGraph
+```
+
+The Reddit activity network contains a graph attribute `type` (set to "reddit"). 
+
+The node attributes are: 
+- `name` (string showing position of the comment in the thread), 
+- `date` (date when the comment was authored, in DD-MM-YY format), 
+- `subreddit` (the subreddit from which the post is collected), 
+- `user` (Reddit handle or screen name of the user who authored the comment or post), 
+- `node_type` ('comment' or 'thread'), 
+- `title` (`NA` for all nodes except that representing the original post), 
+- `label` (a concatenation of name and user). 
+- Because we used `AddText()` in the above example, there is also a node attribute `vosonTxt_comment` which is the text from the comment, or original post. 
+
+The edge attribute contains `edge_type` which is 'comment' for all edges.
+
+How many nodes and edges are there in the example Reddit activity network?
+
+```{r}
+```
+
+Use the following codes for a visualization of the actor network. 
+
+```{r}
+# set original post node colors to red based on a node type of thread
+# set other node colors to grey
+V(activityGraph)$color <- "grey"
+V(activityGraph)$color[which(V(activityGraph)$node_type == "thread")] <- "red"
+
+# get node indexes for nodes that have comment attributes containing words of interest
+# set their node colors to blue
+ind <- grep("arson|starting fires", tolower(V(activityGraph)$vosonTxt_comment))
+V(activityGraph)$color[ind] <- "blue"
+
+plot(activityGraph, vertex.label = "", vertex.size = 4, edge.arrow.size = 0.5)
+```
